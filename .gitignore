@@ -41,3 +41,4 @@ vignettes/*.pdf
 # plots and knit'd docs
 *.pdf
 *.png
+*.html
