@@ -1,0 +1,47 @@
+---
+title: "Lets make a plot with the data"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Paleoecology data stuff
+
+```{r}
+require(readr)
+require(dplyr)
+setwd('~/projects/QB-2021-project')
+lbs <- readr::read_csv('data/layer_by_species.csv')
+lbs <- lbs[, 2:ncol(lbs)] # remove useless first column
+```
+
+## Let's draw a time series
+
+```{r}
+require(ggplot2)
+rich_series <- lbs %>%
+  mutate(richness = rowSums(lbs[,2:ncol(lbs)]))
+rich_series
+g <- ggplot(rich_series, aes(x = layer, y = richness, group=1)) +
+  geom_point() +
+  stat_smooth(method = 'lm') +
+  xlab('Layer [proxy for time]') +
+  ylab('S')
+g
+```
+
+## Species distribution in time
+
+Are all species equally good at persisting?
+
+```{r}
+species_persistance <- lbs %>%
+  gather(taxa, pres_abs, 2:ncol(lbs)) %>%
+  group_by(taxa) %>%
+  summarize(persistance = sum(pres_abs))
+species_persistance
+
+g <- ggplot(species_persistance, aes(x = persistance)) +
+  geom_histogram(binwidth=1)
+g
+```
