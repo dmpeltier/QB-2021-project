@@ -12,7 +12,6 @@ require(readr)
 require(dplyr)
 setwd('~/projects/QB-2021-project')
 lbs <- readr::read_csv('data/layer_by_species.csv')
-lbs <- lbs[, 2:ncol(lbs)] # remove useless first column
 ```
 
 ## Let's draw a time series

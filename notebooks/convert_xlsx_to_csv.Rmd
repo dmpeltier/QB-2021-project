@@ -52,5 +52,5 @@ Now we have *essentially* a site-by-species matrix for our data that is formatte
 
 ```{r}
 # uncomment to write file, its curently giving me an error because of working dir or something
-# write.csv(tib_t, 'data/layer_by_species.csv')
+write.csv(tib_t, '~/projects/QB-2021-project/data/layer_by_species.csv', row.names = FALSE)
 ```
