@@ -1,0 +1,56 @@
+---
+title: "Convert xlsx to csv"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# All we're going to do here is convert our xlsx into a csv.
+
+We're going to use `readxl` because thats how I know how to do it. First we'll load the data as a tibble.
+
+```{r}
+require(readxl)
+setwd('~/projects/QB-2021-project/')
+tib <- readxl::read_xlsx('data/species.xlsx')
+str(tib)
+```
+
+## Clean up future column names
+
+This is just where sites (really layers for us) are rows while species are columns. We're going to want to adjust some stuff. Forexample we will need unique names for our columns. we'll name them using `genus_species` by manipulating the values in those columns we will do that using `tidyr`. We'll also clean up the text using `dplyr` functions with `stringr` functions.
+
+```{r}
+require(tidyr)
+require(dplyr)
+require(stringr)
+tib_combined <- tib %>%
+  tidyr::unite(genus_species, c("Genus", "Species")) %>%
+  dplyr::mutate(genus_species = tolower(genus_species)) %>%
+  dplyr::mutate(genus_species = stringr::str_replace(genus_species, "[.]", "")) %>%
+  dplyr::mutate(genus_species = stringr::str_replace(genus_species, " ", "_"))
+str(tib_combined)
+```
+## Transpose the dataframe
+
+This is going to look a little complicated but it will very "elegantly" get us what we want using `tidr` functions. It works like this:
+
+1. Combine all of the columns other than `genus_species` into two columns, call them `layer` and `pres`. This gives us a mostly "long" format dataframe. Each row consists of a taxon, a layer, and whether or not the taxon is present in that layer.
+1. Use the `genus_species` column to generate a bunch of new columns, one for each taxon. This returns us to a "wide" format.
+1. Make all of the layer names lowercase letters only so we never have to think about capital letters again.
+
+```{r}
+tib_t <- tib_combined %>%
+  tidyr::gather(key = "layer", value = "pres", 2:ncol(tib_combined)) %>% 
+  tidyr::spread(key = "genus_species", value = "pres") %>%
+  dplyr::mutate(layer = tolower(layer))
+str(tib_t)
+```
+## Save the dataframe as a csv
+
+Now we have *essentially* a site-by-species matrix for our data that is formatted to play very nicely with `tidyverse` stuff. We just need to save it which we can do with the built in function `write.csv`.
+
+```{r}
+# uncomment to write file, its curently giving me an error because of working dir or something
+# write.csv(tib_t, 'data/layer_by_species.csv')
+```
