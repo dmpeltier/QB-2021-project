@@ -46,11 +46,18 @@ tib_t <- tib_combined %>%
   dplyr::mutate(layer = tolower(layer))
 str(tib_t)
 ```
+## Add columns for time
+```{r}
+time_layer <- read.csv('~/projects/QB-2021-project/data/unitages.csv')
+tib_t_merged <- merge(tib_t, time_layer, by="layer")
+names(tib_t_merged)
+```
+
 ## Save the dataframe as a csv
 
 Now we have *essentially* a site-by-species matrix for our data that is formatted to play very nicely with `tidyverse` stuff. We just need to save it which we can do with the built in function `write.csv`.
 
 ```{r}
 # uncomment to write file, its curently giving me an error because of working dir or something
-write.csv(tib_t, '~/projects/QB-2021-project/data/layer_by_species.csv', row.names = FALSE)
+write.csv(tib_t_merged, '~/projects/QB-2021-project/data/layer_by_species.csv', row.names = FALSE)
 ```

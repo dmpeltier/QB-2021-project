@@ -19,14 +19,17 @@ lbs <- readr::read_csv('data/layer_by_species.csv')
 ```{r}
 require(ggplot2)
 rich_series <- lbs %>%
-  mutate(richness = rowSums(lbs[,2:ncol(lbs)]))
+  mutate(richness = rowSums(select(., -layer, -upper_ma, -lower_ma))) %>%
+  mutate(rev_lower = 2 - lower_ma)
 rich_series
-g <- ggplot(rich_series, aes(x = layer, y = richness, group=1)) +
+g <- ggplot(rich_series, aes(x = lower_ma, y = richness, group=1)) +
   geom_point() +
+  scale_x_reverse() +
   stat_smooth(method = 'lm') +
-  xlab('Layer [proxy for time]') +
+  xlab('Age (Million Years Ago)') +
   ylab('S')
 g
+ggsave('~/projects/QB-2021-project/plots/timeseries_richness.pdf')
 ```
 
 ## Species distribution in time
@@ -34,6 +37,7 @@ g
 Are all species equally good at persisting?
 
 ```{r}
+require(tidyr)
 species_persistance <- lbs %>%
   gather(taxa, pres_abs, 2:ncol(lbs)) %>%
   group_by(taxa) %>%
@@ -43,4 +47,56 @@ species_persistance
 g <- ggplot(species_persistance, aes(x = persistance)) +
   geom_histogram(binwidth=1)
 g
+```
+```{r}
+# modified from https://jootse84.github.io/notes/jaccard-index-calculation-in-R#:~:text=The%20Jaccard%20Index%20is%20a,the%20length%20of%20its%20union
+
+calculate_jaccard_rows <- function(df, row1, row2) {
+  pa_mat <- df %>%
+    select(-lower_ma, -upper_ma, -layer) %>%
+    as.matrix()
+  
+  sums <- colSums(pa_mat[c(row1, row2),])
+  
+  inters <- length(sums[sums == 2])
+  row1_s <- sum(pa_mat[row1,])
+  row2_s <- sum(pa_mat[row2,])
+  uni <- length(sums[sums > 0])
+  
+  # uni <- row1_s + row2_s - inters
+  
+  return(inters/uni)
+}
+
+j_vals <- c(NULL)
+for (i in 1:(nrow(lbs) - 1)) {
+  j_vals <- c(j_vals, calculate_jaccard_rows(lbs, i, i+1))
+}
+
+rich_series <- lbs %>%
+  mutate(richness = rowSums(select(., -layer, -upper_ma, -lower_ma))) %>%
+  mutate(age = lower_ma) %>%
+  mutate(measure = "richness") %>%
+  mutate(value = richness) %>%
+  select(age, measure, value)
+
+jaccard_df <- lbs %>%
+  mutate(age = lower_ma) %>%
+  mutate(value = c(0, j_vals)) %>%
+  mutate(measure = "jaccard") %>%
+  select(age, measure, value)
+  
+rich_jaccard <- bind_rows(list(rich_series, jaccard_df))
+rich_jaccard <- spread(rich_jaccard, measure, value)
+
+g <- ggplot(rich_jaccard, aes(x = age, y = richness, color = jaccard)) +
+  stat_smooth(formula = 'y ~ x', method = 'lm', linetype='dashed', color='black') +
+  geom_point(size=5) +
+  scale_x_reverse() +
+  xlab('Age (Million Years Ago)') +
+  ylab('S') +
+  scale_color_gradient(low="black", high="red") +
+  theme_bw()
+ggsave('~/projects/QB-2021-project/plots/richness_jaccard.png')
+ggsave('~/projects/QB-2021-project/plots/richness_jaccard.pdf')
 ```
