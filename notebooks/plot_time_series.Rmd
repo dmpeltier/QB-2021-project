@@ -30,6 +30,8 @@ g <- ggplot(rich_series, aes(x = lower_ma, y = richness, group=1)) +
   ylab('S')
 g
 ggsave('~/projects/QB-2021-project/plots/timeseries_richness.pdf')
+reg <- lm("richness ~ lower_ma", rich_series)
+summary(reg)
 ```
 
 ## Species distribution in time
@@ -97,6 +99,32 @@ g <- ggplot(rich_jaccard, aes(x = age, y = richness, color = jaccard)) +
   ylab('S') +
   scale_color_gradient(low="black", high="red") +
   theme_bw()
-ggsave('~/projects/QB-2021-project/plots/richness_jaccard.png')
-ggsave('~/projects/QB-2021-project/plots/richness_jaccard.pdf')
+g
+```
+
+```{r}
+lm("richness ~ age", rich_jaccard)
+```
+
+## lets try and get an ordination real quick
+
+```{r}
+require(vegan)
+require(purrr)
+labels <- as_vector(lbs['layer'])
+print(labels)
+pres_bc <- vegdist(lbs[,2:ncol(lbs)], method = "bray")
+pres_pcoa <- cmdscale(pres_bc, eig = TRUE)
+
+expl1 <- round(pres_pcoa$eig[1] / sum(pres_pcoa$eig), 3) * 100
+expl2 <- round(pres_pcoa$eig[2] / sum(pres_pcoa$eig), 3) * 100
+
+plot(pres_pcoa$points[,1], pres_pcoa$points[,2],
+     ylim=c(-0.4, 0.4),
+     xlim=c(-0.5, 0.4),
+     xlab = paste("PCoA 1 (", expl1, " %)", sep=""),
+     ylab = paste("PCoA 2 (", expl2, " %)", sep=""))
+text(pres_pcoa$points[,1], pres_pcoa$points[,2], labels, pos = 1)
+
+
 ```

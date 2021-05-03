@@ -42,3 +42,9 @@ vignettes/*.pdf
 *.pdf
 *.png
 *.html
+
+# weird tex temp stuff
+*.swp
+*#
+*.log
+*.tex

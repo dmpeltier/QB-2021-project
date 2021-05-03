@@ -44,13 +44,13 @@ tib_t <- tib_combined %>%
   tidyr::gather(key = "layer", value = "pres", 2:ncol(tib_combined)) %>% 
   tidyr::spread(key = "genus_species", value = "pres") %>%
   dplyr::mutate(layer = tolower(layer))
-str(tib_t)
+print(tib_t)
 ```
 ## Add columns for time
 ```{r}
 time_layer <- read.csv('~/projects/QB-2021-project/data/unitages.csv')
 tib_t_merged <- merge(tib_t, time_layer, by="layer")
-names(tib_t_merged)
+print(tib_t_merged)
 ```
 
 ## Save the dataframe as a csv
@@ -60,4 +60,20 @@ Now we have *essentially* a site-by-species matrix for our data that is formatte
 ```{r}
 # uncomment to write file, its curently giving me an error because of working dir or something
 write.csv(tib_t_merged, '~/projects/QB-2021-project/data/layer_by_species.csv', row.names = FALSE)
+```
+
+# Ok now we'll do the same thing for the coarse-grained data and the environmental data just to get it all cleaned up and ready to go.
+
+```{r}
+# load raw data
+percent <- readr::read_csv('../data/taxapercent.csv')
+percent_clean <- percent %>%
+  mutate(layer = X1) %>%
+  select(-"pop%", -"X1") %>%
+  merge(time_layer, by = "layer")
+# remove percent signs from column names
+names(percent_clean) <- gsub("%", "", x=names(percent_clean))
+# add the age column
+str(percent_clean)
+readr::write_csv(percent_clean, "../data/layer_by_percent.csv")
 ```

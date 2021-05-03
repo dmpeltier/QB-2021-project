@@ -1,0 +1,100 @@
+---
+title: "$\beta$ Diversity Plots"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+# Pure $\beta$ Diversity
+
+```{r}
+require(tidyr)
+require(dplyr)
+require(ggplot)
+
+setwd("~/projects/QB-2021-project/")
+
+# load the coarse-grained abundance data
+taxa <- readr::read_csv("data/taxapercent.csv")
+
+```
+
+# Sørensen Distance (species level)
+
+```{r}
+library(viridis)
+# load the presence absence species level data
+lbs <- readr::read_csv("~/projects/QB-2021-project/data/layer_by_species.csv")
+layers <-  lbs[,1]
+pres_abs <- lbs[,2:ncol(lbs)]
+print(pres_abs)
+
+lbs_sor <- vegan::vegdist(pres_abs, method = "bray", binary = TRUE)
+print(11:1)
+lattice::levelplot(as.matrix(lbs_sor)[,11:1], aspect = "iso", 
+                   col.regions = viridis, xlab = "Layer", ylab = "Layer",
+                   main = "Sørensen")
+```
+
+I think I don't like heat maps. Instead I'm going to do that incredibly dense dendrogram/heatmap thing
+
+```{r}
+# modified from https://jootse84.github.io/notes/jaccard-index-calculation-in-R#:~:text=The%20Jaccard%20Index%20is%20a,the%20length%20of%20its%20union
+
+calculate_jaccard_rows <- function(df, row1, row2) {
+  pa_mat <- df %>%
+    select(-lower_ma, -upper_ma, -layer) %>%
+    as.matrix()
+  
+  sums <- colSums(pa_mat[c(row1, row2),])
+  
+  inters <- length(sums[sums == 2])
+  row1_s <- sum(pa_mat[row1,])
+  row2_s <- sum(pa_mat[row2,])
+  uni <- length(sums[sums > 0])
+  
+  # uni <- row1_s + row2_s - inters
+  
+  return(inters/uni)
+}
+
+j_vals <- c(NULL)
+for (i in 1:(nrow(lbs) - 1)) {
+  j_vals <- c(j_vals, calculate_jaccard_rows(lbs, i, i+1))
+}
+
+rich_series <- lbs %>%
+  mutate(richness = rowSums(select(., -layer, -upper_ma, -lower_ma))) %>%
+  mutate(age = lower_ma) %>%
+  mutate(measure = "richness") %>%
+  mutate(value = richness) %>%
+  select(age, measure, value)
+
+jaccard_df <- lbs %>%
+  mutate(age = lower_ma) %>%
+  mutate(value = c(0, j_vals)) %>%
+  mutate(measure = "jaccard") %>%
+  select(age, measure, value)
+  
+rich_jaccard <- bind_rows(list(rich_series, jaccard_df))
+rich_jaccard <- spread(rich_jaccard, measure, value)
+
+g <- ggplot(rich_jaccard, aes(x = age, y = richness, color = jaccard)) +
+  stat_smooth(formula = 'y ~ x', method = 'lm', linetype='dashed', color='black') +
+  geom_point(size=5) +
+  scale_x_reverse() +
+  xlab('Age (Million Years Ago)') +
+  ylab('S') +
+  scale_color_gradient(low="black", high="red") +
+  theme_bw()
+g
+```
+
+## Bray-Curtis (coarse-grained)
+
+```{r}
+
+```
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
