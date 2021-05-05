@@ -10,16 +10,14 @@ output:
 ```{r}
 require(tidyr)
 require(dplyr)
-require(ggplot)
+require(ggplot2)
 
 setwd("~/projects/QB-2021-project/")
-
-# load the coarse-grained abundance data
-taxa <- readr::read_csv("data/taxapercent.csv")
-
 ```
 
 # Sørensen Distance (species level)
+
+### Heatmap of resemblance
 
 ```{r}
 library(viridis)
@@ -35,15 +33,16 @@ lattice::levelplot(as.matrix(lbs_sor)[,11:1], aspect = "iso",
                    col.regions = viridis, xlab = "Layer", ylab = "Layer",
                    main = "Sørensen")
 ```
+### Time series
 
-I think I don't like heat maps. Instead I'm going to do that incredibly dense dendrogram/heatmap thing
+The Other thing we can do with the presence absence matrix is produce that time series thing of species richness with the trend and jaccard distances included as well.
 
 ```{r}
 # modified from https://jootse84.github.io/notes/jaccard-index-calculation-in-R#:~:text=The%20Jaccard%20Index%20is%20a,the%20length%20of%20its%20union
 
 calculate_jaccard_rows <- function(df, row1, row2) {
   pa_mat <- df %>%
-    select(-lower_ma, -upper_ma, -layer) %>%
+    select(-age_ma, -layer) %>%
     as.matrix()
   
   sums <- colSums(pa_mat[c(row1, row2),])
@@ -64,14 +63,14 @@ for (i in 1:(nrow(lbs) - 1)) {
 }
 
 rich_series <- lbs %>%
-  mutate(richness = rowSums(select(., -layer, -upper_ma, -lower_ma))) %>%
-  mutate(age = lower_ma) %>%
+  mutate(richness = rowSums(select(., -layer, -age_ma))) %>%
+  mutate(age = age_ma) %>%
   mutate(measure = "richness") %>%
   mutate(value = richness) %>%
   select(age, measure, value)
 
 jaccard_df <- lbs %>%
-  mutate(age = lower_ma) %>%
+  mutate(age = age_ma) %>%
   mutate(value = c(0, j_vals)) %>%
   mutate(measure = "jaccard") %>%
   select(age, measure, value)
@@ -90,11 +89,61 @@ g <- ggplot(rich_jaccard, aes(x = age, y = richness, color = jaccard)) +
 g
 ```
 
+So we have an overall downward trend [can i get a p-value for this?] the jaccard similarity seems to be lowest following large losses in species richness.
+
 ## Bray-Curtis (coarse-grained)
 
+### Dendrogram of sites and species
+We can also produce plots using the coarse-grained family level data. We'll start with that dense as hell dendrogram heatmap thing
+
 ```{r}
+# load the data
+taxa <- readr::read_csv("../data/layer_by_percent.csv")
 
+# exclude layer at age_ma cols
+taxa_mat <- as.matrix(select(taxa, -layer, -age_ma))
+gplots::heatmap.2(taxa_mat, distfun = function(x) vegan::vegdist(x), 
+                  hclustfun = function(x) hclust(x, method="ward.D2"),
+                  col = viridis, trace = "none", density.info = "none")
+print(colSums(taxa_mat))
 ```
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
 
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+eh. not really an interesting and clear signal here other than some families are dominant. Bovidae is almost always a plurality in these sites.
+
+### Ordination
+
+We'll start with a simple PCoA before trying to get more complicated by adding environmental data.
+
+```{r}
+# do the scaling
+taxa_bc <- vegan::vegdist(taxa_mat)
+taxa_pcoa <- cmdscale(taxa_bc, eig = TRUE, k = 3)
+
+# calculate explained variances
+taxa_expvar <- round(sapply(taxa_pcoa$eig, function(x) x / sum(taxa_pcoa$eig)), 3)
+
+# convert to dataframe and add some nice labels
+pcoa_df <- tibble::as_tibble(taxa_pcoa$points)
+nice_labels <- c("Bed I (low)", "Bed I (mid)", "Bed I (high)", "Bed II (low)", 
+                 "Bed II (mid)", "Bed II (high)", "Bed III", "Bed IV (low)", 
+                 "Bed IV (mid)", "Bed IV (high)", "Masek")
+plot_pcoa <- pcoa_df %>%
+  mutate(layer = nice_labels) %>%
+  mutate(age = taxa$age_ma)
+g <- ggplot(plot_pcoa, aes(x = V1, y = V2, col = age)) +
+  geom_hline(yintercept = 0, linetype = 2, color = "grey") +
+  geom_vline(xintercept = 0, linetype = 2, color = "grey") +
+  geom_point(size = 5) +
+  geom_text(aes(x = V1, y = V2 + 0.02, label = layer), color = "black") +
+  scale_color_continuous(type = "viridis") +
+  xlim(-0.45, 0.3) +
+  ylim(-0.2, 0.3) +
+  xlab(paste("PCoA 1 (", taxa_expvar[1]*100, "%)", sep="")) +
+  ylab(paste("PCoA 2 (", taxa_expvar[2]*100, "%)", sep="")) +
+  ggthemes::theme_pander()
+
+g
+```
+
+It looks like we can sort of see separation between the layers with the middle time period sort of clustering in the bottom right.
+
